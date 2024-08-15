@@ -420,37 +420,40 @@ public class DEBUG__CONVEYOR_BELT : MonoBehaviour
 				PATH path = STORE.PATHS[i0];
 
 
-				// linear__move
-				if (path.path_type != C.circular_path)
-				{
-					CONVEYOR_BELT end_belt = path.belts[path.belts.Count - 1];
-					if (end_belt.exit_flow_TILE_index == C.MACHINE__flow)
-					{
-						STORE.MACHINE__1D[end_belt.exit_flow_TILE_index]
-							.LET_1D[end_belt.exit_flow_TILE_LET_index]
-							.payload = end_belt.payload;
-
-						//
-						end_belt.payload = C.none__payload;
-					}
-
-
-					for (int i1 = path.belts.Count - 2; i1 >= 0; i1 -= 1)
-					{
-						if (path.belts[i1 + 1].payload == C.none__payload)
-						{
-							path.belts[i1 + 1].payload = path.belts[i1].payload;
-							path.belts[i1].payload = C.none__payload;
-						}
-					}
-				}
-				
-
 				// circular_move
-				else
+				if (path.path_type == C.circular_path) { circular_move(path); return; }
+
+
+
+
+
+				// linear__move
+
+				CONVEYOR_BELT end_belt = path.belts[path.belts.Count - 1];
+				//
+				if (end_belt.exit_flow_TILE_index == C.MACHINE__flow)
 				{
-					circular_move(path);
+					STORE.MACHINE__1D[end_belt.exit_flow_TILE_index]
+						.LET_1D[end_belt.exit_flow_TILE_LET_index]
+						.payload = end_belt.payload;
+
+					//
+					end_belt.payload = C.none__payload;
 				}
+
+
+				for (int i1 = path.belts.Count - 2; i1 >= 0; i1 -= 1)
+				{
+					if (path.belts[i1 + 1].payload == C.none__payload)
+					{
+						path.belts[i1 + 1].payload = path.belts[i1].payload;
+						path.belts[i1].payload = C.none__payload;
+					}
+				}
+
+
+
+
 				//
 			}
 		}
@@ -1142,6 +1145,69 @@ public class DEBUG__CONVEYOR_BELT : MonoBehaviour
 		public List<LET> LET_1D;                             // L<LET>
 
 		public int TYPE_OF_MACHINE;                          // PRODUCER , CONVERTER , COMBINER
+
+
+
+
+
+
+		//// FUNCTIONALITY ////
+
+		#region FUNCTIONALITY__MOVE_RESOURCES
+		/*
+			transfer payload from end_belt to the MACHINE(if exist)
+			move the payload on CONVEYOR_BELT in the along the path
+		*/
+
+
+		public static void FUNCTIONALITY__MOVE_RESOURCES()
+		{
+			for (int i0 = 0; i0 < STORE.PATHS.Count; i0 += 1)
+			{
+				PATH path = STORE.PATHS[i0];
+
+
+				// linear__move
+				if (path.path_type != C.circular_path)
+				{
+					CONVEYOR_BELT end_belt = path.belts[path.belts.Count - 1];
+					if (end_belt.exit_flow_TILE_index == C.MACHINE__flow)
+					{
+						STORE.MACHINE__1D[end_belt.exit_flow_TILE_index]
+							.LET_1D[end_belt.exit_flow_TILE_LET_index]
+							.payload = end_belt.payload;
+
+						//
+						end_belt.payload = C.none__payload;
+					}
+
+
+					for (int i1 = path.belts.Count - 2; i1 >= 0; i1 -= 1)
+					{
+						if (path.belts[i1 + 1].payload == C.none__payload)
+						{
+							path.belts[i1 + 1].payload = path.belts[i1].payload;
+							path.belts[i1].payload = C.none__payload;
+						}
+					}
+				}
+
+
+
+
+
+			}
+		}
+
+		#endregion
+
+
+
+		//// FUNCTIONALITY ////
+
+
+
+
 	}
 
 	public class LET
@@ -1346,6 +1412,51 @@ public class DEBUG__CONVEYOR_BELT : MonoBehaviour
 		}
 
 
+
+
+		public static void COMMAND_REMOVE__CONVEYOR_BELT(int[] pos)
+		{
+
+			// REMOVE //
+			TILE tile = STORE.GRID[pos[1]][pos[0]];
+			if (tile.TILE_TYPE != C.CONVEYOR_BELT__tile)
+				return;
+
+			CONVEYOR_BELT belt = STORE.CONVEYOR_BELT__1D[tile.TILE_INDEX_in_HOLDER];
+
+
+
+			Debug.Log(STORE.CONVEYOR_BELT__1D.Count);
+			STORE.CONVEYOR_BELT__1D.Remove(belt);
+			Debug.Log(STORE.CONVEYOR_BELT__1D.Count);
+
+
+			// make it empty //
+			STORE.GRID[pos[1]][pos[0]].TILE_TYPE = C.EMPTY__tile;
+			STORE.GRID[pos[1]][pos[0]].TILE_INDEX_in_HOLDER = C.NONE__tile;
+			// make it empty //
+
+
+
+
+			// Re-index TILE_index_in_holder //
+			for(int i0 = 0; i0 < STORE.CONVEYOR_BELT__1D.Count; i0 += 1)
+			{
+				int[] global_pos = STORE.CONVEYOR_BELT__1D[i0].global_pos;
+				STORE.GRID[global_pos[1]][global_pos[0]].TILE_INDEX_in_HOLDER = i0;
+			}
+			// Re-index TILE_index_in_holder //
+
+
+
+
+
+
+			// CALCULATE //
+			STORE.UPDATE__CONVEYOR_BELT__CONFIGURATIONS__and__PATHS_CALCULATION();
+			// CALCULATE //
+			//
+		}
 		#endregion
 
 	} 
@@ -1383,14 +1494,16 @@ public class DEBUG__CONVEYOR_BELT : MonoBehaviour
 					COMMAND.COMMAND_ROTATE__CONVEYOR_BELT(pos2D);
 				}
 				//
-				else if (Input.GetKey(KeyCode.P))
+				else if (Input.GetKey(KeyCode.P)) { COMMAND.COMMAND_PAYLOAD__CONVEYOR_BELT(pos2D, C.rock__resource); }
+				else if (Input.GetKey(KeyCode.W)) { COMMAND.COMMAND_PAYLOAD__CONVEYOR_BELT(pos2D, C.wood__resource); }
+
+
+				//
+				else if (Input.GetKey(KeyCode.X))
 				{
-					COMMAND.COMMAND_PAYLOAD__CONVEYOR_BELT(pos2D , C.rock__resource);
+					COMMAND.COMMAND_REMOVE__CONVEYOR_BELT(pos2D);
 				}
-				else if (Input.GetKey(KeyCode.W))
-				{
-					COMMAND.COMMAND_PAYLOAD__CONVEYOR_BELT(pos2D , C.wood__resource);
-				}
+
 				//
 				else
 				{
